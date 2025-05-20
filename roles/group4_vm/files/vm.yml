@@ -1,0 +1,108 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: "ubuntu-vm1"
+spec:
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+  source:
+    http:
+      url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+
+
+---
+
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  creationTimestamp: null
+  generation: 1
+  labels:
+    kubevirt.io/os: linux
+  name: vm1
+spec:
+  runStrategy: Always
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: vm1
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: disk0
+            - cdrom:
+                bus: sata
+                readonly: true
+              name: cloudinitdisk
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 4Gi
+      volumes:
+        - name: disk0
+          persistentVolumeClaim:
+            claimName: ubuntu-vm1
+        - cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: vm1
+              password: ubuntu
+              sudo: ALL=(ALL) NOPASSWD:ALL
+              chpasswd: { expire: False }
+              ssh_pwauth: True
+              disable_root: false
+              ssh_authorized_keys:
+                - ${SSH_KEY}
+              package_update: true
+              packages:
+                - xfce4
+                - xfce4-goodies
+                - xorgxrdp
+                - dbus-x11
+                - xrdp
+                - xrdp-sesman
+                - policykit-1
+              write_files:
+                - path: /var/lib/cloud/scripts/per-instance/setup-xrdp.sh
+                  content: |
+                    #!/bin/bash
+                    systemctl start xrdp
+                    systemctl enable xrdp
+                    echo "startxfce4" > /etc/skel/.xsession
+                    echo "startxfce4" > /home/ubuntu/.xsession
+                    echo '#!/bin/sh' > /etc/xrdp/startwm.sh
+                    echo 'if [ -r /etc/default/locale ]; then' >> /etc/xrdp/startwm.sh
+                    echo '    . /etc/default/locale' >> /etc/xrdp/startwm.sh
+                    echo '    export LANG LANGUAGE' >> /etc/xrdp/startwm.sh
+                    echo 'fi' >> /etc/xrdp/startwm.sh
+                    echo 'startxfce4' >> /etc/xrdp/startwm.sh
+                    chmod 755 /etc/xrdp/startwm.sh
+                    systemctl restart xrdp
+                    systemctl restart xrdp-sesman
+                    mkdir -p /etc/polkit-1/localauthority/50-local.d/
+                    cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla << EOF
+                    [Allow Color Management]
+                    Identity=unix-user:*
+                    Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+                    ResultAny=yes
+                    ResultInactive=yes
+                    ResultActive=yes
+                    EOF
+                    systemctl restart polkit.service
+
+                  permissions: '0755'
+              runcmd:
+                # Execute our script which handles the specific order of operations
+                - /var/lib/cloud/scripts/per-instance/setup-xrdp.sh
+          name: cloudinitdisk

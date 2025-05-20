@@ -1,0 +1,10 @@
+---
+- name: Wait for virt-api to be ready (KubeVirt check)
+  shell: kubectl -n kubevirt get pods -l kubevirt.io=virt-api -o jsonpath="{.items[0].status.phase}"
+  register: virt_api_status
+  retries: 10
+  delay: 5
+  until: virt_api_status.stdout == "Running"
+
+- name: Apply VM manifest
+  command: kubectl apply -f "{{ role_path }}/files/vm.yml"
