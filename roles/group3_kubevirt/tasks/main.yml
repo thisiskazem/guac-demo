@@ -1,0 +1,35 @@
+---
+- name: Verify k3s is running (check kubectl access)
+  shell: kubectl get nodes
+  register: k3s_status
+  retries: 10
+  delay: 5
+  until: k3s_status.rc == 0
+
+- name: Apply kubevirt-operator manifest
+  command: kubectl apply -f "{{ role_path }}/files/kubevirt-operator.yaml"
+
+- name: Apply kubevirt-cr manifest
+  command: kubectl apply -f "{{ role_path }}/files/kubevirt-cr.yaml"
+
+- name: Set ARCH environment variable for virtctl
+  set_fact:
+    virtctl_arch: "{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+
+- name: Download virtctl binary
+  get_url:
+    url: "https://github.com/kubevirt/kubevirt/releases/download/v1.5.1/virtctl-v1.5.1-{{ virtctl_arch }}"
+    dest: "/tmp/virtctl"
+    mode: '0755'
+
+- name: Install virtctl to /usr/local/bin
+  copy:
+    src: "/tmp/virtctl"
+    dest: "/usr/local/bin/virtctl"
+    mode: '0755'
+
+- name: Apply cdi-operator manifest
+  command: kubectl apply -f "{{ role_path }}/files/cdi-operator.yaml"
+
+- name: Apply cdi-cr manifest
+  command: kubectl apply -f "{{ role_path }}/files/cdi-cr.yaml"
