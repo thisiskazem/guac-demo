@@ -38,6 +38,7 @@ The infrastructure consists of four main components:
    ```bash
    git clone https://github.com/thisiskazem/guac-demo
    cd guac-demo
+   chmod +x install.sh
    ```
 
 2. Run the installation script:
