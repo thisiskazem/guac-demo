@@ -1,27 +1,35 @@
 ---
-- name: Install k3s
+- name: Check if k3s is already installed
+  command: which k3s
+  register: k3s_check
+  ignore_errors: yes
+
+- name: Install k3s if not present
   shell: curl -sfL https://get.k3s.io | sh -
+  when: k3s_check.rc != 0
 
 - name: Wait for k3s config to be available
   wait_for:
     path: /etc/rancher/k3s/k3s.yaml
     timeout: 120
 
-- name: Add k3s config to .bashrc
-  lineinfile:
-    path: ~/.bashrc
-    line: "{{ item }}"
-    create: yes
-  with_items:
-    - "alias k='kubectl'"
-    - "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml"
-    - "source <(kubectl completion bash)"
-    - "complete -o default -F __start_kubectl k"
+- name: Add k3s config and kubectl aliases to user's .bashrc
+  blockinfile:
+    path: "/home/ubuntu/.bashrc"
+    marker: "# {mark} K3s Configuration"
+    block: |
+      alias k='kubectl'
+      export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+      source <(kubectl completion bash)
+      complete -o default -F __start_kubectl k
 
-- name: Apply bashrc changes
-  shell: source ~/.bashrc
+- name: Apply bashrc changes for ubuntu user
+  shell: source /home/ubuntu/.bashrc
   args:
     executable: /bin/bash
+  become: yes
+  become_user: ubuntu
+  
 
 - name: Set permissions on kubeconfig
   file:
