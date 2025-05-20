@@ -5,6 +5,6 @@
 
   roles:
     - group1_k3s
-    # - group2_guacamole
-    # - group3_kubevirt
-    # - group4_vm
+    - group2_guacamole
+    - group3_kubevirt
+    - group4_vm
