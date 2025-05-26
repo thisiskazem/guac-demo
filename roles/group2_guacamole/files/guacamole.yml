@@ -4,6 +4,21 @@ metadata:
   name: guacamole
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guacamole-config
+  namespace: guacamole
+data:
+  guacamole.properties: |
+    guacd-hostname=guacd
+    guacd-port=4822
+    postgresql-hostname=postgres
+    postgresql-port=5432
+    postgresql-database=guacamole_db
+    postgresql-username=guacamole
+    postgresql-password=guacamole
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: guacd
@@ -44,9 +59,32 @@ spec:
       port: 80
       targetPort: 8080
   type: LoadBalancer
-
 ---
-
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  namespace: guacamole
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /home/vahid/PROJECT/guacamole/data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: guacamole
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,7 +102,12 @@ spec:
     spec:
       containers:
       - name: guacd
-        image: linuxserver/guacd:latest
+        image: harbor.crownlabs.polito.it/sid/guacd:1.5.5
+        imagePullPolicy: Always
+        command: ["/usr/local/sbin/guacd"]
+        args: ["-b", "0.0.0.0", "-f"]
+        ports:
+        - containerPort: 4822
         volumeMounts:
         - name: drive
           mountPath: /drive
@@ -73,10 +116,10 @@ spec:
       volumes:
       - name: drive
         hostPath:
-          path: /guacamole/drive
+          path: /home/vahid/PROJECT/guacamole/drive
       - name: record
         hostPath:
-          path: /guacamole/record
+          path: /home/vahid/PROJECT/guacamole/record
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -95,7 +138,7 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: postgres:13.4
+        image: postgres:16
         env:
         - name: PGDATA
           value: /var/lib/postgresql/data/guacamole
@@ -112,17 +155,17 @@ spec:
               name: postgres-secret
               key: POSTGRES_USER
         volumeMounts:
-        - name: init
-          mountPath: /docker-entrypoint-initdb.d
-        - name: data
+        - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
       volumes:
-      - name: init
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      - name: init-scripts
         hostPath:
-          path: /guacamole/init
-      - name: data
-        hostPath:
-          path: /guacamole/data
+          path: /home/vahid/PROJECT/db/init
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -141,33 +184,34 @@ spec:
     spec:
       containers:
       - name: guacamole
-        image: jwetzell/guacamole:latest
+        image: harbor.crownlabs.polito.it/sid/guacamole:1.5.5
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
         env:
-        - name: GUACD_HOSTNAME
-          value: guacd
-        - name: POSTGRES_DATABASE
-          value: guacamole_db
-        - name: POSTGRES_HOSTNAME
-          value: postgres
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_PASSWORD
-        - name: POSTGRES_USER
+        - name: POSTGRESQL_USER
           valueFrom:
             secretKeyRef:
               name: postgres-secret
               key: POSTGRES_USER
-        - name: POSTGRESQL_AUTO_CREATE_ACCOUNTS
-          value: "true"
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
         volumeMounts:
+        - name: guacamole-config
+          mountPath: /usr/local/tomcat/.guacamole/guacamole.properties
+          subPath: guacamole.properties
         - name: drive
           mountPath: /drive
       volumes:
+      - name: guacamole-config
+        configMap:
+          name: guacamole-config
       - name: drive
         hostPath:
-          path: /guacamole/drive
+          path: /home/vahid/PROJECT/guacamole/drive
 ---
 apiVersion: v1
 kind: Secret
