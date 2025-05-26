@@ -2,7 +2,7 @@
 - name: Check if k3s is already installed
   command: which k3s
   register: k3s_check
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Install k3s if not present
   shell: curl -sfL https://get.k3s.io | sh -
@@ -27,7 +27,7 @@
   shell: source /home/ubuntu/.bashrc
   args:
     executable: /bin/bash
-  become: yes
+  become: true
   become_user: ubuntu
   
 
@@ -35,3 +35,17 @@
   file:
     path: /etc/rancher/k3s/k3s.yaml
     mode: '0644'
+
+- name: Create directory for SQL initialization files
+  file:
+    path: /home/crownlabs/PROJECT/db/init
+    state: directory
+    mode: '0755'
+
+- name: Copy SQL initialization files
+  copy:
+    src: "{{ item }}"
+    dest: /home/crownlabs/PROJECT/db/init/
+  with_items:
+    - 01.sql
+    - 02.sql
