@@ -71,7 +71,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /home/vahid/PROJECT/guacamole/data
+    path: /home/crownlabs/PROJECT/guacamole/data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -116,10 +116,10 @@ spec:
       volumes:
       - name: drive
         hostPath:
-          path: /home/vahid/PROJECT/guacamole/drive
+          path: /home/crownlabs/PROJECT/guacamole/drive
       - name: record
         hostPath:
-          path: /home/vahid/PROJECT/guacamole/record
+          path: /home/crownlabs/PROJECT/guacamole/record
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -165,7 +165,7 @@ spec:
           claimName: postgres-pvc
       - name: init-scripts
         hostPath:
-          path: /home/vahid/PROJECT/db/init
+          path: /home/crownlabs/PROJECT/db/init
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -211,7 +211,7 @@ spec:
           name: guacamole-config
       - name: drive
         hostPath:
-          path: /home/vahid/PROJECT/guacamole/drive
+          path: /home/crownlabs/PROJECT/guacamole/drive
 ---
 apiVersion: v1
 kind: Secret
