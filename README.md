@@ -83,7 +83,7 @@ To connect to a VM using Guacamole, follow these steps:
 
 2. Open your browser and navigate to:
    ```
-   http://localhost:<port>
+   http://localhost:<port>/guacamole
    ```
    (Replace `<port>` with the port number you found in step 1)
 
